@@ -1,7 +1,7 @@
 import time
 from game_settings import *
 from Tetris import Tetris
-#from scoreboard import Scoreboard
+
 
 
 class Game:
@@ -31,6 +31,8 @@ class Game:
         pg.time.set_timer(self.user_event, animation_time)
         pg.time.set_timer(self.fast_user_event, self.FAST_ANIM_TIME)
 
+    def get_state(self):
+        pass
 
     def draw(self):
         self.window.fill(color=BG_COLOR)
@@ -62,10 +64,10 @@ class Game:
                 self.fast_animation=True
 
     def run(self):
-        while True:
-            self.check_events()
-            self.draw()
-            self.update()
+        
+        self.check_events()
+        self.draw()
+        self.update()
 
 
 

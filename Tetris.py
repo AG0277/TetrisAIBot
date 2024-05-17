@@ -45,7 +45,7 @@ class Tetris():
     def game_over(self):
         if self.tetromino.blocks[0].position.y==INITIALIZE_POSITION[1]:
             self.highscoreChecking()
-            pg.time.wait(300)
+            #pg.time.wait(300)
             return True
 
     
