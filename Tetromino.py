@@ -21,6 +21,7 @@ class Tetromino:
                     block.position=new_position[i]
 
     def move(self, direction):
+        
         move_direction=MOVEMENTS[direction]
         new_position=[block.position+move_direction for block in self.blocks]
 
@@ -31,8 +32,23 @@ class Tetromino:
         elif direction=="down":
             self.add_to_map=True
 
+    def move_down(self):
+        move_direction = MOVEMENTS["down"]  # Przesunięcie w dół
+        
+        new_position=[block.position+move_direction for block in self.blocks]
+        is_collide=self.collision(new_position)
+        while not is_collide:
+            for block in self.blocks:
+                block.position+=move_direction
+            new_position=[block.position+move_direction for block in self.blocks]
+            is_collide=self.collision(new_position)
+        self.add_to_map = True
+
+
+
     def update(self):
         self.move("down")
 
     def collision(self, block_position):
         return any(map(Block.collision, self.blocks, block_position))
+    

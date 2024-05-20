@@ -4,7 +4,7 @@ import pathlib
 
 
 vector=pg.math.Vector2
-FPS=60
+FPS=500
 CELL_SIZE=40
 
 

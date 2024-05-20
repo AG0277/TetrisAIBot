@@ -17,6 +17,7 @@ class Tetris():
         self.score_add=100
         self.speed_up=False
         self.animation_time=500
+        self.done = False
         self.highscore=self.loadHighscore()
 
     def loadHighscore(self):
@@ -45,8 +46,16 @@ class Tetris():
     def game_over(self):
         if self.tetromino.blocks[0].position.y==INITIALIZE_POSITION[1]:
             self.highscoreChecking()
-            #pg.time.wait(300)
+            pg.time.wait(300)
             return True
+        return False
+        # for block in self.tetromino.blocks:
+        #     if self.list_of_tetrominos[int(block.position.y)][int(block.position.x)] != 0 and self.tetromino.blocks[0].position.y==INITIALIZE_POSITION[1]:
+        #         self.highscoreChecking()
+        #         #pg.time.wait(300)
+        #         return True
+        # return False
+
 
     
 
@@ -54,7 +63,8 @@ class Tetris():
         if self.tetromino.add_to_map:
             self.speed_up=False
             if self.game_over():
-                self.__init__(self.game)
+                self.done = True
+                #self.__init__(self.game)
             else:
                 self.add_tetromino_tolist()
                 self.next_shape.current=True
@@ -117,3 +127,29 @@ class Tetris():
     def draw(self):
         self.draw_board_grid()
         self.sprite_grp.draw(self.game.window)
+
+    def check_for_reward(self):
+        row=BOARD_HEIGHT-1
+        reward = 0
+        for i in range(BOARD_HEIGHT-1, -1, -1):
+            for j in range(BOARD_WIDTH):
+                self.list_of_tetrominos[row][j]=self.list_of_tetrominos[i][j]
+
+                if self.list_of_tetrominos[i][j]:
+                    self.list_of_tetrominos[row][j].position=vector(j, i)
+
+            if sum(map(bool, self.list_of_tetrominos[i]))<BOARD_WIDTH:
+                row-=1
+
+            else:
+                for j in range(BOARD_WIDTH):
+                    self.list_of_tetrominos[row][j].alive=False
+                    self.list_of_tetrominos[row][j]=0
+                self.score+=self.score_add
+                reward = 1000
+        
+        if self.tetromino.add_to_map:
+            if self.game_over():
+                reward = -500
+                
+        return reward, self.done, self.score

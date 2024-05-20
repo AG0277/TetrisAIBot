@@ -15,14 +15,9 @@ class Game:
         self.fast_user_event = pg.USEREVENT + 1
         self.animation = False
         self.fast_animation=False
-        self.game_menu=True
-        self.levels=False
-        self.scorebool=False
-        self.running=False
-        self.inputbool=False
         self.FAST_ANIM_TIME = 1
-        self.controls=False
         self.timer(self.tetris.animation_time)
+        
 
     def clear_board(self):
         self.tetris.clear_board()
@@ -30,9 +25,6 @@ class Game:
     def timer(self, animation_time):
         pg.time.set_timer(self.user_event, animation_time)
         pg.time.set_timer(self.fast_user_event, self.FAST_ANIM_TIME)
-
-    def get_state(self):
-        pass
 
     def draw(self):
         self.window.fill(color=BG_COLOR)
@@ -47,6 +39,9 @@ class Game:
         self.tetris.update()
         self.clock.tick(FPS)
 
+
+    def restart(self):
+        self.tetris.__init__(self)
 
     def check_events(self):
         self.animation=False
@@ -64,7 +59,6 @@ class Game:
                 self.fast_animation=True
 
     def run(self):
-        
         self.check_events()
         self.draw()
         self.update()
