@@ -6,6 +6,9 @@ from network import NeuralNetwork, Memory
 import itertools
 import matplotlib.pyplot as plt
 from game_settings import *
+import time
+import copy
+from Tetris import get_holes, get_bumpiness, get_aggregate_height, get_complete_lines, get_reward
 
 LIST_OF_ACTIONS = [(0, 0), (0, 1), (0, 2), (0, 3), 
                            (1, 0), (1, 1), (1, 2), (1, 3), 
@@ -70,10 +73,10 @@ class Agent():
             pass
 
     def get_state2(self, board):
-        aggr_height = self.game.tetris.get_aggregate_height(board)
-        complete_lines = self.game.tetris.get_complete_lines(board)
-        holes = self.game.tetris.get_holes(board)
-        bumpiness = self.game.tetris.get_bumpiness(board)
+        aggr_height = get_aggregate_height(board)
+        complete_lines =get_complete_lines(board)
+        holes = get_holes(board)
+        bumpiness = get_bumpiness(board)
         
 
         state =[float(aggr_height),
@@ -144,23 +147,88 @@ class Agent():
             print("siec")
         return torch.argmax(q_values).item()
 
-    def simulate_move(self, action_number, board):
+    def simulate_move(self, action_number, board, tetrominoBlocks):
         position, rotation = LIST_OF_ACTIONS[action_number]
+
+        for blocks in tetrominoBlocks:
+            print(blocks.x,blocks.y )
+
+        for temp in range (rotation):
+            self.rotate(board,tetrominoBlocks)
+
+        self.move(position,tetrominoBlocks,board)
+        new_position=[(block.x,block.y + 1) for block in tetrominoBlocks]
+        collision = self.checkCollisions(board,new_position)
+        while not collision:
+            for block in tetrominoBlocks:
+                block.y +=1
+            new_position=[(block.x,block.y+1) for block in tetrominoBlocks]
+            collision = self.checkCollisions(board,new_position)
+
+        for block in tetrominoBlocks:
+            board[int(block.y)][int(block.x)] ="1"
+
+        return board
+
+
+    def checkCollisions(self, board, tetrominoBlocks):
+        for block in tetrominoBlocks:
+            x,y=int(block[0]), int(block[1])
+            if not(0<=x<BOARD_WIDTH and y <BOARD_HEIGHT and (y<0 or not board[y][x])):
+                return True
+        return False
+
+    def rotate(self, board, tetrominoBlocks):
+        rotate_point=tetrominoBlocks[0]
+        new_position=[self.rotateBlock(rotate_point,block) for block in tetrominoBlocks]
+
+        if not self.checkCollisions(board,new_position):
+            for i, block in enumerate(tetrominoBlocks):
+                block=new_position[i]
+
+    def rotateBlock(self, rotate_point, block):
+        point=block-rotate_point
+        rotated=point.rotate(90)
+        return rotated+rotate_point
+
+    def move(self, position, tetrominoBlocks, board):
+        start_position = 4
+        direction = position - start_position
         
-        pass
+        sign = -1
+        if(direction>0):
+            sign = 1
+
+        new_value =[(block.x+sign, block.y) for block in tetrominoBlocks]
+        for i in range(abs(direction)):
+            new_value =[(block.x+sign, block.y) for block in tetrominoBlocks]
+            if not(self.checkCollisions(board,new_value )):
+                if direction<start_position:
+                    for block in tetrominoBlocks:
+                        block.x -=1
+                elif direction> start_position:
+                    for block in tetrominoBlocks:
+                        block.x +=1
+                else:
+                    pass
 
     def simulate_aciton(self):
         best_score = -float('inf')
         best_action = None
         
-        initial_board = self.game.tetris.list_of_tetrominos.copy()
-        shape = self.game.tetris.tetromino.shape
+        listOfBlocks= []
+        for block in game.tetris.tetromino.blocks:
+            copiedBlock= copy.deepcopy(block.position)
+            listOfBlocks.append(copiedBlock)
+
+        copied_2d_list = copy.deepcopy(game.tetris.list_of_tetrominos)#[row[::-1] for row in game.tetris.list_of_tetrominos]
+
         for action_number in range(len(LIST_OF_ACTIONS)):
-            simulated_list = initial_board.copy()
-            
-            self.simulate_move(action_number, simulated_list, shape)
+            simulated_list = copy.deepcopy(copied_2d_list)
+            copiedListOfBlocks = copy.deepcopy(listOfBlocks)
+            simulated_list = self.simulate_move(action_number, simulated_list, copiedListOfBlocks)
             new_state = self.get_state2(simulated_list)
-            score = self.game.tetris.get_reward(WEIGHTS, new_state)
+            score = get_reward(WEIGHTS, new_state)
             
             if score > best_score:
                 best_score = score
@@ -189,11 +257,13 @@ def train():
         games = 0
         total_score = 0
         for _ in range(200):
+
             game.run()
-            agent.simulate_aciton()
+            action = agent.simulate_aciton()
             state = agent.get_state2(game.tetris.list_of_tetrominos)
+            print(state)
             #print(state)
-            action = agent.act(state=state)
+            #action = agent.act(state=state)
             agent.make_action2(action)
 
             #reward, done, score = game.tetris.check_for_reward()
@@ -201,7 +271,7 @@ def train():
             #print(game.tetris.get_aggregate_height())
             new_state = agent.get_state2(game.tetris.list_of_tetrominos)
             #print(new_state)
-            reward = game.tetris.get_reward(WEIGHTS, new_state)
+            reward = get_reward(WEIGHTS, new_state)
             agent.memory.update_memory(state,action,reward,new_state,done)
            
             if done:
@@ -219,7 +289,8 @@ def train():
 
             state = agent.get_state2(game.tetris.list_of_tetrominos)
             
-            action = agent.act(state)
+            action = agent.simulate_aciton()
+            #action = agent.act(state)
             agent.make_action2(action)
            
             #reward, done, score = game.tetris.check_for_reward()
@@ -228,8 +299,8 @@ def train():
             
             
             
-            new_state = agent.get_state2()
-            reward = game.tetris.get_reward(WEIGHTS, new_state)
+            new_state = agent.get_state2(game.tetris.list_of_tetrominos)
+            reward = get_reward(WEIGHTS, new_state)
             
             if score > game.tetris.highscore:
                 reward = 10
@@ -281,10 +352,20 @@ if __name__=="__main__":
     game = Game()
     agent = Agent(game)
     #while True:
-    #train()
-    while True:
-        game.run()
-        agent.simulate_move(0,game.tetris.list_of_tetrominos)
+    train()
+    # while True:
+    #     game.run()
+
+    #     copiedBlocks= []
+    #     for block in game.tetris.tetromino.blocks:
+    #         copiedBlock= copy.deepcopy(block.position)
+    #         copiedBlocks.append(copiedBlock)
+    #     copied_2d_list = [row[::-1] for row in game.tetris.list_of_tetrominos]
+    #     for temp in range(40):
+    #         agent.simulate_move(temp,copied_2d_list,copiedBlocks)
+
+        #agent.simulate_move(6,game.tetris.list_of_tetrominos,game.tetris.tetromino.blocks)
+        #game.run()
 # while True:
 #     game.run()
 #     #agent.make_action2(6)

@@ -187,67 +187,72 @@ class Tetris():
                 
         return self.done, self.score
     
-    def get_reward(self, weights, new_state):
-        return weights[0] * new_state[0] + weights[1] * new_state[1] +weights[2] * new_state[2] + weights[3] * new_state[3] 
+def get_reward(weights, new_state):
+    return weights[0] * new_state[0] + weights[1] * new_state[1] +weights[2] * new_state[2] + weights[3] * new_state[3] 
 
-    def get_holes(self, board):
-        holes = 0
-        for j in range(BOARD_WIDTH):
-            block_found = False  # Flaga, która wskazuje, czy znaleziono klocek nad pustą przestrzenią
-            for i in range(BOARD_HEIGHT):
-                if board[i][j]:  # Jeśli znaleziono klocek
-                    block_found = True
-                elif block_found:  # Jeśli jest pusta przestrzeń pod klockiem
-                    holes += 1
-        return holes
-    
-    def get_list_of_column_size(self, board):
-        listOfBlocks = {}
-        for tetrominoX in board:
-            for singleTetromino in tetrominoX:
-                if singleTetromino != 0:
-                    tempX = singleTetromino.position.x
-                    tempY = singleTetromino.position.y
-                    if(tempX not in listOfBlocks):
-                        listOfBlocks[tempX] = []
-                    listOfBlocks[tempX] += [tempY]
-
-        dictionaryOfColHeight = {}
-        listOfMinColHeight = []
-        for key,value in listOfBlocks.items():
-            dictionaryOfColHeight[key] = min(value)
-
-        for temp in range(0,10):
-            if temp in dictionaryOfColHeight:
-                listOfMinColHeight.append(dictionaryOfColHeight[float(temp)])
-            else:
-                listOfMinColHeight.append(20.0)
-
-        for i in range(len(listOfMinColHeight)):
-              listOfMinColHeight[i] = int(abs(listOfMinColHeight[i]-20))
-
-        return listOfMinColHeight
-        
-    def get_aggregate_height(self, board):
-        return sum(self.get_list_of_column_size(board))
-
-    def get_complete_lines(self, board):
-        
-        full_lines_count = 0  
-
+def get_holes( board):
+    holes = 0
+    for j in range(BOARD_WIDTH):
+        block_found = False  # Flaga, która wskazuje, czy znaleziono klocek nad pustą przestrzenią
         for i in range(BOARD_HEIGHT):
-            if sum(map(bool, board[i])) == BOARD_WIDTH:
-                full_lines_count += 1  # Zwiększ licznik pełnych linii
+            if board[i][j]:  # Jeśli znaleziono klocek
+                block_found = True
+            elif block_found:  # Jeśli jest pusta przestrzeń pod klockiem
+                holes += 1
+    return holes
 
-        return full_lines_count  
+def get_list_of_column_size( board):
+    listOfBlocks = {}
+    for y,tetrominoX in enumerate(board):
+        for x,singleTetromino in enumerate(tetrominoX):
+            tempX=0
+            tempY=0
+            if singleTetromino == "1":
+                tempX=x
+                tempY=y
+            elif singleTetromino != 0 and singleTetromino !="1":
+                tempX = int(singleTetromino.position.x)
+                tempY = int(singleTetromino.position.y)
+            if(tempX not in listOfBlocks):
+                listOfBlocks[tempX] = []
+            listOfBlocks[tempX] += [tempY]
+
+    dictionaryOfColHeight = {}
+    listOfMinColHeight = []
+    for key,value in listOfBlocks.items():
+        dictionaryOfColHeight[key] = min(value)
+
+    for temp in range(0,10):
+        if temp in dictionaryOfColHeight:
+            listOfMinColHeight.append(dictionaryOfColHeight[float(temp)])
+        else:
+            listOfMinColHeight.append(20.0)
+
+    for i in range(len(listOfMinColHeight)):
+            listOfMinColHeight[i] = int(abs(listOfMinColHeight[i]-20))
+
+    return listOfMinColHeight
     
-    def get_bumpiness(self, board):
-        list_of_col_heights = self.get_list_of_column_size(board)
-        bumpiness = 0
-        for i in range(len(list_of_col_heights) - 1):
-            bumpiness += abs(list_of_col_heights[i] - list_of_col_heights[i+1])
+def get_aggregate_height(board):
+    return sum(get_list_of_column_size(board))
 
-        return bumpiness
+def get_complete_lines(board):
+    
+    full_lines_count = 0  
+
+    for i in range(BOARD_HEIGHT):
+        if sum(map(bool, board[i])) == BOARD_WIDTH:
+            full_lines_count += 1  # Zwiększ licznik pełnych linii
+
+    return full_lines_count  
+
+def get_bumpiness(board):
+    list_of_col_heights = get_list_of_column_size(board)
+    bumpiness = 0
+    for i in range(len(list_of_col_heights) - 1):
+        bumpiness += abs(list_of_col_heights[i] - list_of_col_heights[i+1])
+
+    return bumpiness
     
     
 

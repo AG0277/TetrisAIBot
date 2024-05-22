@@ -5,9 +5,9 @@ from Block import Block
 class Tetromino:
     def __init__(self, tetris, current=True):
         self.tetris=tetris
-        self.shape=random.choice(list(TETROMINOS.keys()))
+        self.shape=TETROMINOS["Z"] #random.choice(list(TETROMINOS.keys()))
         self.color = random.choice(BLOCK_IMAGES)
-        self.blocks=[Block(self, pos) for pos in TETROMINOS[self.shape]]
+        self.blocks=[Block(self, pos) for pos in TETROMINOS["Z"]]
         self.add_to_map=False
         self.current=current
 
@@ -54,4 +54,5 @@ class Tetromino:
         
     def collision(self, block_position):
         return any(map(Block.collision, self.blocks, block_position))
+    
     
