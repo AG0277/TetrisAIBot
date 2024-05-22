@@ -70,6 +70,7 @@ class Tetris():
                 self.next_shape.current=True
                 self.tetromino=self.next_shape
                 self.next_shape=Tetromino(self, current=False)
+               
 
     def draw_board_grid(self):
         for i in range(BOARD_WIDTH):
@@ -79,7 +80,7 @@ class Tetris():
     def check_for_full_lines(self):
 
         row=BOARD_HEIGHT-1
-
+        
         for i in range(BOARD_HEIGHT-1, -1, -1):
             for j in range(BOARD_WIDTH):
                 self.list_of_tetrominos[row][j]=self.list_of_tetrominos[i][j]
@@ -95,7 +96,7 @@ class Tetris():
                     self.list_of_tetrominos[row][j].alive=False
                     self.list_of_tetrominos[row][j]=0
                 self.score+=self.score_add
-             
+                
 
     def printing_score(self):
         score_text=self.font.render("SCORE   {0}".format(self.score), True, (255,255,255))
@@ -105,9 +106,39 @@ class Tetris():
         self.game.window.blit(next_shape_text, (460, 250))
         self.game.window.blit(highscore_text,(435,650))
 
+    def make_action2(self,action_number):
+        list_of_actions = [(0, 0), (0, 1), (0, 2), (0, 3), 
+                           (1, 0), (1, 1), (1, 2), (1, 3), 
+                           (2, 0), (2, 1), (2, 2), (2, 3), 
+                           (3, 0), (3, 1), (3, 2), (3, 3), 
+                           (4, 0), (4, 1), (4, 2), (4, 3), 
+                           (5, 0), (5, 1), (5, 2), (5, 3), 
+                           (6, 0), (6, 1), (6, 2), (6, 3), 
+                           (7, 0), (7, 1), (7, 2), (7, 3), 
+                           (8, 0), (8, 1), (8, 2), (8, 3), 
+                           (9, 0), (9, 1), (9, 2), (9, 3)]
+        
+        position, rotations = list_of_actions[action_number]
+        start_position = int(INITIALIZE_POSITION.x)
+        
+        for i in range(rotations):
+            self.tetromino.rotate()
+        
+        direction = position - start_position
+
+        for i in range(abs(direction)):
+            if direction<start_position:
+                self.tetromino.move(direction="left")
+            elif direction> start_position:
+                self.tetromino.move(direction="right")
+            else:
+                pass
+
     def controls(self, pressed_key):
+        
         if pressed_key==pg.K_LEFT:
             self.tetromino.move("left")
+            #self.make_action2(10)
         elif pressed_key==pg.K_RIGHT:
             self.tetromino.move("right")
         elif pressed_key==pg.K_UP:
@@ -122,7 +153,7 @@ class Tetris():
             self.tetromino.update()
             self.add_to_map()
         self.sprite_grp.update()
-        pg.display.update()
+        pg.display.update()        
 
     def draw(self):
         self.draw_board_grid()
@@ -151,5 +182,73 @@ class Tetris():
         if self.tetromino.add_to_map:
             if self.game_over():
                 reward = -500
+            else:
+                reward = 5
                 
-        return reward, self.done, self.score
+        return self.done, self.score
+    
+    def get_reward(self, weights, new_state):
+        return weights[0] * new_state[0] + weights[1] * new_state[1] +weights[2] * new_state[2] + weights[3] * new_state[3] 
+
+    def get_holes(self, board):
+        holes = 0
+        for j in range(BOARD_WIDTH):
+            block_found = False  # Flaga, która wskazuje, czy znaleziono klocek nad pustą przestrzenią
+            for i in range(BOARD_HEIGHT):
+                if board[i][j]:  # Jeśli znaleziono klocek
+                    block_found = True
+                elif block_found:  # Jeśli jest pusta przestrzeń pod klockiem
+                    holes += 1
+        return holes
+    
+    def get_list_of_column_size(self, board):
+        listOfBlocks = {}
+        for tetrominoX in board:
+            for singleTetromino in tetrominoX:
+                if singleTetromino != 0:
+                    tempX = singleTetromino.position.x
+                    tempY = singleTetromino.position.y
+                    if(tempX not in listOfBlocks):
+                        listOfBlocks[tempX] = []
+                    listOfBlocks[tempX] += [tempY]
+
+        dictionaryOfColHeight = {}
+        listOfMinColHeight = []
+        for key,value in listOfBlocks.items():
+            dictionaryOfColHeight[key] = min(value)
+
+        for temp in range(0,10):
+            if temp in dictionaryOfColHeight:
+                listOfMinColHeight.append(dictionaryOfColHeight[float(temp)])
+            else:
+                listOfMinColHeight.append(20.0)
+
+        for i in range(len(listOfMinColHeight)):
+              listOfMinColHeight[i] = int(abs(listOfMinColHeight[i]-20))
+
+        return listOfMinColHeight
+        
+    def get_aggregate_height(self, board):
+        return sum(self.get_list_of_column_size(board))
+
+    def get_complete_lines(self, board):
+        
+        full_lines_count = 0  
+
+        for i in range(BOARD_HEIGHT):
+            if sum(map(bool, board[i])) == BOARD_WIDTH:
+                full_lines_count += 1  # Zwiększ licznik pełnych linii
+
+        return full_lines_count  
+    
+    def get_bumpiness(self, board):
+        list_of_col_heights = self.get_list_of_column_size(board)
+        bumpiness = 0
+        for i in range(len(list_of_col_heights) - 1):
+            bumpiness += abs(list_of_col_heights[i] - list_of_col_heights[i+1])
+
+        return bumpiness
+    
+    
+
+    

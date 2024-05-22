@@ -8,14 +8,14 @@ import torch.nn.functional as F
 class NeuralNetwork(torch.nn.Module):
     def __init__(self, input_layer, output_layer): #input layer 63? output layer 4 for now
         super(NeuralNetwork, self).__init__()
-        self.fc1 = torch.nn.Linear(input_layer, 128)
-        self.fc2 = torch.nn.Linear(128, 128)
-        self.fc3 = torch.nn.Linear(128, output_layer)
+        self.fc1 = torch.nn.Linear(input_layer, 64)
+        self.fc2 = torch.nn.Linear(64, output_layer)
+        #self.fc3 = torch.nn.Linear(128, output_layer)
     
     def forward(self, x):
         x = F.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = self.fc3(x)
+        #x = torch.relu(self.fc2(x))
+        x = self.fc2(x)
         return x
 
 BUFFER_SIZE = 50_000
@@ -42,10 +42,10 @@ class Memory():
     
     def train_from_memory(self, sample):
         states, actions, rewards, new_states, dones = zip(*sample)
-
+        
         states = torch.tensor(states, dtype=torch.float32)
         actions = torch.tensor(actions, dtype=torch.int64)
-        rewards = torch.tensor(rewards, dtype=torch.int64)
+        rewards = torch.tensor(rewards, dtype=torch.float32)
         new_states = torch.tensor(new_states, dtype=torch.float32)
         dones = torch.tensor(dones, dtype=torch.bool)
 

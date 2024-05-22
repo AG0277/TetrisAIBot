@@ -5,7 +5,18 @@ from game import Game
 from network import NeuralNetwork, Memory
 import itertools
 import matplotlib.pyplot as plt
+from game_settings import *
 
+LIST_OF_ACTIONS = [(0, 0), (0, 1), (0, 2), (0, 3), 
+                           (1, 0), (1, 1), (1, 2), (1, 3), 
+                           (2, 0), (2, 1), (2, 2), (2, 3), 
+                           (3, 0), (3, 1), (3, 2), (3, 3), 
+                           (4, 0), (4, 1), (4, 2), (4, 3), 
+                           (5, 0), (5, 1), (5, 2), (5, 3), 
+                           (6, 0), (6, 1), (6, 2), (6, 3), 
+                           (7, 0), (7, 1), (7, 2), (7, 3), 
+                           (8, 0), (8, 1), (8, 2), (8, 3), 
+                           (9, 0), (9, 1), (9, 2), (9, 3)]
 class Agent():
 
     def __init__(self, game):
@@ -19,16 +30,36 @@ class Agent():
                         "right": 2,
                         "down": 3,
                         "hold": 4}
-        self.policy_net = NeuralNetwork(208,5)
-        self.target_net = NeuralNetwork(208,5)
+        self.policy_net = NeuralNetwork(4,40)
+        self.target_net = NeuralNetwork(4,40)
         self.memory = Memory(self.policy_net, self.target_net, self.gamma,self.learning_rate)
 
-    
+    def make_action2(self,action_number):
+        
+        
+        position, rotations = LIST_OF_ACTIONS[action_number]
+        start_position = int(INITIALIZE_POSITION.x)
+        
+        for i in range(rotations):
+            self.game.tetris.tetromino.rotate()
+        
+        direction = position - start_position
+
+        for i in range(abs(direction)):
+            if direction<start_position:
+                self.game.tetris.tetromino.move(direction="left")
+            elif direction> start_position:
+                self.game.tetris.tetromino.move(direction="right")
+            else:
+                pass
+        
+        self.game.tetris.tetromino.move_down()
+
 
     def make_action(self,action_number):
         if action_number == 0:
             self.game.tetris.tetromino.rotate()
-        elif action_number == 1:
+        elif action_number == 1:    
             self.game.tetris.tetromino.move(direction="left")
         elif action_number == 2:
             self.game.tetris.tetromino.move(direction="right")
@@ -38,10 +69,49 @@ class Agent():
         elif action_number == 4:
             pass
 
+    def get_state2(self, board):
+        aggr_height = self.game.tetris.get_aggregate_height(board)
+        complete_lines = self.game.tetris.get_complete_lines(board)
+        holes = self.game.tetris.get_holes(board)
+        bumpiness = self.game.tetris.get_bumpiness(board)
+        
+
+        state =[float(aggr_height),
+                float(complete_lines),
+                float(holes),
+                float(bumpiness)]
+        #print(state)
+        return np.array(state, dtype=np.float32)
+    
     def get_state(self):
         #blocks_position = tf.keras.layers.Flatten(self.game.tetris.list_of_tetrominos)
         #block_position1d = [item for sublist in self.game.tetris.list_of_tetrominos for item in sublist]
         block_position1d = [1 if item != 0 else 0 for sublist in self.game.tetris.list_of_tetrominos for item in sublist]
+        
+
+
+        listOfBlocks = {}
+        for tetrominoX in self.game.tetris.list_of_tetrominos:
+            for singleTetromino in tetrominoX:
+                if singleTetromino != 0:
+                    tempX = singleTetromino.position.x
+                    tempY = singleTetromino.position.y
+                    if(tempX not in listOfBlocks):
+                        listOfBlocks[tempX] = []
+                    listOfBlocks[tempX] += [tempY]
+
+        dictionaryOfColHeight = {}
+        listOfMinColHeight = []
+        for key,value in listOfBlocks.items():
+            dictionaryOfColHeight[key] = min(value)
+
+        for temp in range(0,10):
+            if temp in dictionaryOfColHeight:
+                listOfMinColHeight.append(dictionaryOfColHeight[float(temp)])
+            else:
+                listOfMinColHeight.append(20.0)
+        
+
 
         state = [
             # position of the tetromino blocks
@@ -61,46 +131,79 @@ class Agent():
 
 
         ]
-        state = state + block_position1d
+        state = state + listOfMinColHeight
         return np.array(state, dtype=np.float64)
     
     def act(self, state):
         if random.random() <= self.epsilon:
             print("random")
-            return random.randint(0,4)  
+            return random.randint(0,39)  
         state = torch.FloatTensor(state).unsqueeze(0)
         with torch.no_grad():
             q_values = self.policy_net(state)
             print("siec")
         return torch.argmax(q_values).item()
 
-MIN_MEMORY_SIZE = 1_000
+    def simulate_move(self, action_number, board):
+        position, rotation = LIST_OF_ACTIONS[action_number]
+        
+        pass
+
+    def simulate_aciton(self):
+        best_score = -float('inf')
+        best_action = None
+        
+        initial_board = self.game.tetris.list_of_tetrominos.copy()
+        shape = self.game.tetris.tetromino.shape
+        for action_number in range(len(LIST_OF_ACTIONS)):
+            simulated_list = initial_board.copy()
+            
+            self.simulate_move(action_number, simulated_list, shape)
+            new_state = self.get_state2(simulated_list)
+            score = self.game.tetris.get_reward(WEIGHTS, new_state)
+            
+            if score > best_score:
+                best_score = score
+                best_action = action_number
+    
+        return best_action
+
+
+
+MIN_MEMORY_SIZE = 100
 EPSILON_START = 1.0
 EPSILON_END = 0.05
-EPSILON_DECAY = 20_000
+EPSILON_DECAY = 5_000
 
 UPDATE_FREQ = 100
+
+WEIGHTS = [-0.510066, 0.760666, -0.35663, -0.184483]
 def train():
        
         
         game = Game()
         agent = Agent(game)
-        
-        for _ in range(5000):
+        plt_scores = []
+        plt_loss = []
+        plt_average_score = []
+        games = 0
+        total_score = 0
+        for _ in range(200):
             game.run()
-            #print("Episode nr: ", _)
-            state = agent.get_state()
-            #print("JDJDJDJDJDJDJDJ",type(state))
+            agent.simulate_aciton()
+            state = agent.get_state2(game.tetris.list_of_tetrominos)
+            #print(state)
             action = agent.act(state=state)
-            agent.make_action(action)
+            agent.make_action2(action)
 
-            reward, done, score = game.tetris.check_for_reward()
-            
-            new_state = agent.get_state()
-            
+            #reward, done, score = game.tetris.check_for_reward()
+            done, score = game.tetris.check_for_reward()
+            #print(game.tetris.get_aggregate_height())
+            new_state = agent.get_state2(game.tetris.list_of_tetrominos)
+            #print(new_state)
+            reward = game.tetris.get_reward(WEIGHTS, new_state)
             agent.memory.update_memory(state,action,reward,new_state,done)
-            # if _ == 1:
-            #     print(agent.memory.memory)
+           
             if done:
                 game.restart()
                 print("record: ",game.tetris.highscore)
@@ -114,19 +217,28 @@ def train():
             epsilon = np.interp(step, [0, EPSILON_DECAY], [EPSILON_START, EPSILON_END])
             agent.epsilon = epsilon
 
-            state = agent.get_state()
+            state = agent.get_state2(game.tetris.list_of_tetrominos)
             
             action = agent.act(state)
-            agent.make_action(action)
-
-            reward, done, score = game.tetris.check_for_reward()
-
+            agent.make_action2(action)
+           
+            #reward, done, score = game.tetris.check_for_reward()
+            
+            done, score = game.tetris.check_for_reward()
+            
+            
+            
+            new_state = agent.get_state2()
+            reward = game.tetris.get_reward(WEIGHTS, new_state)
+            
             if score > game.tetris.highscore:
                 reward = 10
-            
-            new_state = agent.get_state()
+            if done:
+                reward = -500
+            # new_state = agent.get_state()
+            print(reward)
             agent.memory.update_memory(state,action,reward,new_state,done)
-
+            
             sample = agent.memory.sample()
             agent.memory.train_from_memory(sample)
 
@@ -135,12 +247,48 @@ def train():
             
             if done:
                 game.restart()
-
+                games +=1
                 if score > game.tetris.highscore:
                     game.tetris.highscore = score
+                total_score +=score
+                plt_scores.append(reward)
+                plt_average_score.append(total_score/games)
+                plt_loss.append(agent.memory.loss)
+
+            if games >= 1000:
+                make_plot(plt_scores,games,'Score')
+                make_plot(plt_average_score,games,'Average Score')
+                make_plot(plt_loss,games,'Loss')
+                break
+
+
+def make_plot(array,games,x,y='Games'):
+    plt.figure(figsize=(10, 8))  # Ustawienie większego rozmiaru wykresu
+    plt.plot([i for i in range(games)], array)  # Dodanie punktów i wykresu liniowego
+    plt.title(f'{x} plot')  # Tytuł wykresu
+    plt.xlabel(y)  # Etykieta osi X
+    plt.ylabel(x)  # Etykieta osi Y
+    plt.grid(True)  # Dodanie siatki
+    plt.show()  # Wyświetlenie wykresu
+
+
+
+
+
+
 
 if __name__=="__main__":
-    
+    game = Game()
+    agent = Agent(game)
+    #while True:
+    #train()
     while True:
-        train()
+        game.run()
+        agent.simulate_move(0,game.tetris.list_of_tetrominos)
+# while True:
+#     game.run()
+#     #agent.make_action2(6)
+#     #pg.time.wait(5000)
+#     #break
+    
             
